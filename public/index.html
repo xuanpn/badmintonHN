@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<title>Cầu lông APH 2026</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏸</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">🏸</span>
+    <div>
+      <h1 id="ttl">Cầu lông Nội bộ 2026</h1>
+      <p id="sub">Khu vực Hà Nội</p>
+    </div>
+  </div>
+  <button id="btnData" class="icon-btn" title="Dữ liệu">⋯</button>
+</header>
+
+<nav class="catbar" id="catbar"></nav>
+
+<main id="view"></main>
+
+<nav class="tabbar">
+  <button class="tab active" data-tab="groups"><span>🗂️</span>Bảng đấu</button>
+  <button class="tab" data-tab="matches"><span>🎯</span>Nhập KQ</button>
+  <button class="tab" data-tab="rank"><span>🏆</span>Xếp hạng</button>
+  <button class="tab" data-tab="second"><span>🥈</span>Nhì XS</button>
+  <button class="tab" data-tab="ko"><span>🏸</span>Loại TT</button>
+</nav>
+
+<!-- Sheet: nhập tỷ số -->
+<div class="modal" id="scoreModal" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="scClose">✕</button>
+    <div id="scBody"></div>
+  </div>
+</div>
+
+<!-- Sheet: dữ liệu -->
+<div class="modal" id="dataModal" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="dmClose">✕</button>
+    <h3>Dữ liệu & sao lưu</h3>
+    <p class="muted small">Kết quả được lưu ngay trên thiết bị này (localStorage). Dùng các nút dưới để xuất ra Google Sheet hoặc chuyển sang máy khác.</p>
+    <div class="stack">
+      <button class="btn" id="btnCopyTSV">📋 Copy để dán vào Google Sheet</button>
+      <button class="btn" id="btnCSV">⬇️ Tải CSV kết quả</button>
+      <button class="btn" id="btnJSON">⬇️ Tải JSON (sao lưu)</button>
+      <label class="btn file">⬆️ Nạp JSON sao lưu<input type="file" id="fileJSON" accept=".json" hidden></label>
+      <button class="btn danger" id="btnReset">🗑️ Xoá toàn bộ kết quả</button>
+    </div>
+    <p class="muted small" id="dmStat"></p>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="data.js"></script>
+<script src="rules.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
