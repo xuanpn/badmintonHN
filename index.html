@@ -18,9 +18,11 @@
       <p id="sub">Khu vực Hà Nội</p>
     </div>
   </div>
+  <button id="btnLock" class="icon-btn" title="Quyền nhập điểm">🔒</button>
   <button id="btnData" class="icon-btn" title="Dữ liệu">⋯</button>
 </header>
 
+<div id="syncbar" class="syncbar" hidden></div>
 <nav class="catbar" id="catbar"></nav>
 
 <main id="view"></main>
@@ -68,6 +70,9 @@
 
 <div id="toast" class="toast" hidden></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="sync.js"></script>
 <script src="data.js"></script>
 <script src="rules.js"></script>
 <script src="app.js"></script>

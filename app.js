@@ -18,6 +18,38 @@ const save = () => {
     localStorage.setItem(KEY_KO, JSON.stringify(koResults));
   } catch (e) { toast("Không lưu được (bộ nhớ trình duyệt bị chặn)"); }
 };
+/* ghi 1 trận: lưu máy + đẩy lên server (nếu có cấu hình) */
+function putGroup(id, a, b) { results[id] = { a, b, at: Date.now() }; save(); Sync.upsert(id, { a, b }); }
+function delGroup(id) { delete results[id]; save(); Sync.remove(id); }
+function putKOsets(id, sets) { koResults[id] = { sets, at: Date.now() }; save(); Sync.upsert(id, { sets }); }
+function delKOsets(id) { delete koResults[id]; save(); Sync.remove(id); }
+
+/* ---------- quyền nhập điểm ---------- */
+let canEdit = false;
+try { canEdit = sessionStorage.getItem("aph-edit") === "1"; } catch (e) { }
+function askEdit() {
+  const pw = prompt("Nhập mật khẩu để được phép sửa kết quả:");
+  if (pw === null) return false;
+  if (pw === (window.EDIT_PASSWORD || "")) {
+    canEdit = true;
+    try { sessionStorage.setItem("aph-edit", "1"); } catch (e) { }
+    renderLock(); render(); toast("Đã mở quyền nhập điểm");
+    return true;
+  }
+  toast("Mật khẩu không đúng");
+  return false;
+}
+function renderLock() {
+  const b = $("#btnLock");
+  b.textContent = canEdit ? "🔓" : "🔒";
+  b.title = canEdit ? "Đang có quyền nhập điểm — bấm để khoá lại" : "Bấm để nhập mật khẩu và được sửa kết quả";
+}
+$("#btnLock").onclick = () => {
+  if (!canEdit) { askEdit(); return; }
+  canEdit = false;
+  try { sessionStorage.removeItem("aph-edit"); } catch (e) { }
+  renderLock(); render(); toast("Đã khoá — chỉ xem");
+};
 
 let cat = RULES.CATS[0];
 let tab = "groups";
@@ -133,7 +165,7 @@ function matchRow(m) {
      </div>
      <div class="m-sc">${r
       ? `<b class="${w1 ? "w" : "lo"}">${r.a}</b><b class="${w2 ? "w" : "lo"}">${r.b}</b>`
-      : `<span class="todo">Nhập</span>`}</div>`;
+      : `<span class="todo">${canEdit ? "Nhập" : "—"}</span>`}</div>`;
   b.onclick = () => openScore(m);
   return b;
 }
@@ -141,6 +173,7 @@ function matchRow(m) {
 /* ---------- modal nhập tỷ số ---------- */
 let curM = null;
 function openScore(m) {
+  if (!canEdit && !askEdit()) return;
   curM = m;
   const r = results[m.id] || {};
   $("#scBody").innerHTML =
@@ -176,12 +209,12 @@ function openScore(m) {
     const err = RULES.validateSet(a, b);
     if (err) { $("#scErr").textContent = err; return; }
     const mm = curM;
-    results[mm.id] = { a, b, at: Date.now() };
-    save(); closeScore(); renderChips(); render();
+    putGroup(mm.id, a, b);
+    closeScore(); renderChips(); render();
     toast(`Đã lưu ${mm.t1} ${a}–${b} ${mm.t2}`);
   };
   if ($("#scDel")) $("#scDel").onclick = () => {
-    delete results[curM.id]; save(); closeScore(); renderChips(); render(); toast("Đã xoá kết quả");
+    delGroup(curM.id); closeScore(); renderChips(); render(); toast("Đã xoá kết quả");
   };
   setTimeout(() => $("#sa").focus(), 60);
 }
@@ -369,6 +402,7 @@ function koRow(k) {
 /* ---------- modal nhập KO (3 séc 21) ---------- */
 let curK = null;
 function openKO(k) {
+  if (!canEdit && !askEdit()) return;
   curK = k;
   const s = k.sets || [];
   const row = i => `<div class="sc-in" style="margin:4px 0">
@@ -408,12 +442,12 @@ function openKO(k) {
       $("#scErr").textContent = "Đã thắng 2-0 thì không có séc 3."; return;
     }
     const kk = curK;
-    koResults[kk.id] = { sets, at: Date.now() };
-    save(); closeScore(); render();
+    putKOsets(kk.id, sets);
+    closeScore(); render();
     toast(`Đã lưu ${kk.round}: ${kk.t1} ${x}–${y} ${kk.t2}`);
   };
   if ($("#koDel")) $("#koDel").onclick = () => {
-    delete koResults[curK.id]; save(); closeScore(); render(); toast("Đã xoá kết quả");
+    delKOsets(curK.id); closeScore(); render(); toast("Đã xoá kết quả");
   };
   setTimeout(() => $("#k0a").focus(), 60);
 }
@@ -545,6 +579,42 @@ function explainSecondHTML(cat) {
   return h;
 }
 
+/* ================= trạng thái đồng bộ ================= */
+function renderSync() {
+  const bar = $("#syncbar");
+  if (!Sync.enabled) {
+    bar.className = "syncbar mu";
+    bar.innerHTML = `<span class="dot"></span>Chế độ máy lẻ — kết quả chỉ lưu trên thiết bị này`;
+    bar.hidden = false; return;
+  }
+  const st = Sync.status, q = Sync.pending;
+  const map = {
+    connecting: ["mu", "Đang kết nối máy chủ…"],
+    online: ["ok", `Đang đồng bộ chung${q ? ` · còn ${q} thay đổi chờ đẩy` : ""}`],
+    offline: ["warn", `Mất mạng — đã lưu tạm${q ? ` ${q} thay đổi` : ""}, sẽ tự đẩy khi có mạng`],
+    error: ["bad", `Không kết nối được máy chủ${q ? ` · ${q} thay đổi chờ` : ""}`],
+    local: ["mu", "Chế độ máy lẻ"]
+  };
+  const [cls, txt] = map[st] || map.connecting;
+  bar.className = "syncbar " + cls;
+  bar.innerHTML = `<span class="dot"></span>${txt}<button id="syncNow">Tải lại</button>`;
+  bar.hidden = false;
+  const b = $("#syncNow");
+  if (b) b.onclick = () => { Sync.pull().then(() => { Sync.flush(); toast("Đã tải lại từ máy chủ"); }); };
+}
+
+/* áp dữ liệu từ máy chủ vào bộ nhớ */
+function applyRows(rows, mode) {
+  if (mode === "full") { results = {}; koResults = {}; }
+  rows.forEach(r => {
+    const id = r.match_id;
+    if (mode === "delete") { delete results[id]; delete koResults[id]; return; }
+    if (r.sets) koResults[id] = { sets: r.sets, at: Date.parse(r.updated_at || "") || Date.now() };
+    else if (r.a != null && r.b != null) results[id] = { a: r.a, b: r.b, at: Date.parse(r.updated_at || "") || Date.now() };
+  });
+  save();
+}
+
 /* ================= render ================= */
 function render() {
   const v = $("#view"); v.innerHTML = "";
@@ -607,16 +677,47 @@ $("#fileJSON").onchange = e => {
       if (typeof o !== "object" || Array.isArray(o)) throw 0;
       results = o.results && o.ko ? o.results : o;
       koResults = o.results && o.ko ? o.ko : koResults;
-      save(); renderChips(); render();
+      save();
+      if (Sync.enabled) {
+        if (!canEdit && !askEdit()) { toast("Đã nạp vào máy này, chưa đẩy lên máy chủ"); }
+        else {
+          Object.entries(results).forEach(([id, r]) => Sync.upsert(id, { a: r.a, b: r.b }));
+          Object.entries(koResults).forEach(([id, r]) => Sync.upsert(id, { sets: r.sets }));
+          toast("Đã nạp và đẩy lên máy chủ");
+        }
+      }
+      renderChips(); renderSync(); render();
       $("#dataModal").hidden = true; toast("Đã nạp sao lưu");
     } catch (err) { toast("File JSON không hợp lệ"); }
   };
   rd.readAsText(f); e.target.value = "";
 };
 $("#btnReset").onclick = () => {
-  if (!confirm("Xoá toàn bộ kết quả đã nhập trên thiết bị này?")) return;
-  results = {}; koResults = {}; save(); renderChips(); render(); $("#dataModal").hidden = true; toast("Đã xoá");
+  const shared = Sync.enabled;
+  const msg = shared
+    ? "XOÁ TOÀN BỘ kết quả trên MÁY CHỦ — tất cả 3 máy sẽ mất hết dữ liệu đã nhập. Chắc chắn?"
+    : "Xoá toàn bộ kết quả đã nhập trên thiết bị này?";
+  if (!confirm(msg)) return;
+  if (shared) {
+    if (!canEdit && !askEdit()) return;
+    if (!confirm("Xác nhận lần 2: xoá hết kết quả của cả giải?")) return;
+    Object.keys(results).forEach(id => Sync.remove(id));
+    Object.keys(koResults).forEach(id => Sync.remove(id));
+  }
+  results = {}; koResults = {}; save(); renderChips(); renderSync(); render();
+  $("#dataModal").hidden = true; toast("Đã xoá");
 };
 
-renderChips(); render();
+renderLock(); renderChips(); renderSync(); render();
+
+Sync.onStatus(() => renderSync());
+Sync.onRemote((rows, mode) => {
+  applyRows(rows, mode);
+  renderChips(); renderSync(); render();
+  if (mode !== "full") toast("Có kết quả mới từ máy khác");
+});
+Sync.init().then(res => {
+  if (Sync.enabled && res && res.rows) { applyRows(res.rows, "full"); renderChips(); render(); }
+  renderSync();
+});
 })();

@@ -132,7 +132,7 @@ def main():
     ap.add_argument("input")
     ap.add_argument("--region", default="Hà Nội")
     ap.add_argument("--date", default="12/09/2026")
-    ap.add_argument("-o", "--out", default=os.path.join(os.path.dirname(__file__), "..", "public", "data.js"))
+    ap.add_argument("-o", "--out", default=os.path.join(os.path.dirname(__file__), "..", "data.js"))
     a = ap.parse_args()
 
     rows, ko_rows = from_xlsx(a.input) if a.input.lower().endswith((".xlsx", ".xlsm")) else from_pdf(a.input)

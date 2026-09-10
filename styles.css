@@ -179,3 +179,17 @@ td b{font-variant-numeric:tabular-nums}
 .ex-box.info{background:var(--pri-soft);color:var(--pri)}
 .ex-box b{font-weight:800}
 .ex-step{font-size:12.5px;line-height:1.6;margin:3px 0}
+
+/* ---------- thanh trạng thái đồng bộ ---------- */
+.syncbar{position:sticky;top:57px;z-index:31;display:flex;align-items:center;gap:8px;
+  padding:7px 14px;font-size:12px;font-weight:600;border-bottom:1px solid var(--line)}
+.syncbar[hidden]{display:none}
+.syncbar.ok{background:var(--ok-soft);color:var(--ok)}
+.syncbar.warn{background:var(--warn-soft);color:var(--warn)}
+.syncbar.bad{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}
+.syncbar.mu{background:var(--line);color:var(--mu)}
+.syncbar .dot{width:8px;height:8px;border-radius:99px;background:currentColor;flex:none}
+.syncbar button{margin-left:auto;border:0;background:transparent;color:inherit;
+  font-size:12px;font-weight:800;text-decoration:underline;cursor:pointer}
+.syncbar.ok+.catbar,.syncbar.warn+.catbar,.syncbar.bad+.catbar,.syncbar.mu+.catbar{top:92px}
+.ro-note{font-size:12.5px;color:var(--mu);text-align:center;padding:8px 0}

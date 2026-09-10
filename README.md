@@ -28,9 +28,55 @@ Nút **⋯** góc trên phải: Copy để dán trực tiếp vào **Google Shee
 
 > Muốn đổi luật (VD dùng cho khu vực Hải Phòng): sửa duy nhất object `ADVANCE` ở đầu file `rules.js` — mọi màn hình tự cập nhật theo.
 
-## Lưu kết quả
+## Lưu kết quả — 2 chế độ
 
-Kết quả (cả vòng bảng và loại trực tiếp) lưu trong `localStorage` của **chính thiết bị đang nhập** (không đồng bộ giữa các máy — đúng như yêu cầu). Muốn tổng hợp: bấm **⋯ → Copy để dán vào Google Sheet** rồi Ctrl+V vào sheet, hoặc tải CSV. Muốn chuyển máy: **Tải JSON** rồi **Nạp JSON** ở máy kia.
+Mọi thứ cấu hình trong **`config.js`** (file duy nhất cần sửa).
+
+**a) Chế độ "máy lẻ"** (để trống `url`/`anonKey`): kết quả lưu trong `localStorage` của chính thiết bị đang nhập, không đồng bộ. Thanh xám trên đầu web ghi rõ điều này. Chuyển máy bằng **⋯ → Tải JSON / Nạp JSON**.
+
+**b) Chế độ đồng bộ nhiều máy (Supabase)** — dùng khi 3 người cùng giám sát nhập:
+- Ai nhập xong, 2 máy còn lại **tự cập nhật trong ~1 giây**, không cần F5.
+- Thanh trạng thái trên đầu: 🟢 *Đang đồng bộ chung* / 🟡 *Mất mạng — đã lưu tạm N thay đổi* / 🔴 *Không kết nối được*. Mất mạng vẫn nhập được, có mạng lại thì **tự đẩy hàng đợi lên**.
+- Nút **🔒/🔓** góc trên: phải nhập mật khẩu (`EDIT_PASSWORD` trong `config.js`) mới sửa được kết quả; người khác mở link chỉ xem lịch/bảng đấu/xếp hạng. Đây là **khoá mềm phía trình duyệt** — đủ ngăn VĐV sửa nhầm, không phải bảo mật thật (ai biết `anonKey` vẫn có thể ghi qua API). Đừng dùng mật khẩu quan trọng.
+- Vẫn giữ bản sao localStorage nên đóng/mở lại máy không mất gì.
+
+### Bật Supabase (làm 1 lần, ~7 phút)
+
+1. Vào https://supabase.com → **Sign in with GitHub** → **New project**. Đặt tên (VD `cau-long-aph`), chọn region **Singapore**, đặt database password (không dùng cho web, cứ lưu lại), **Create**. Chờ ~2 phút.
+2. Menu trái → **SQL Editor** → **New query** → dán nguyên khối dưới đây → **Run**:
+
+```sql
+create table if not exists public.results (
+  event      text not null,
+  match_id   text not null,
+  a          int,
+  b          int,
+  sets       jsonb,
+  updated_at timestamptz default now(),
+  primary key (event, match_id)
+);
+
+alter table public.results enable row level security;
+
+-- cho phép đọc/ghi bằng khoá anon (giải nội bộ, khoá thật nằm ở mật khẩu trên web)
+drop policy if exists results_read  on public.results;
+drop policy if exists results_write on public.results;
+create policy results_read  on public.results for select using (true);
+create policy results_write on public.results for all    using (true) with check (true);
+
+-- bật realtime
+alter publication supabase_realtime add table public.results;
+```
+
+3. Menu trái → **Project Settings → API**. Copy:
+   - **Project URL** → dán vào `url` trong `config.js`
+   - **anon public** key → dán vào `anonKey` (⚠️ KHÔNG dùng `service_role`)
+4. Sửa `EDIT_PASSWORD` thành mật khẩu bạn muốn, commit `config.js` lên GitHub → Vercel tự deploy.
+5. Mở link trên 3 máy, mỗi máy bấm **🔒** nhập mật khẩu 1 lần. Xong — nhập ở máy nào cũng thấy ở máy khác.
+
+Xem/tổng hợp dữ liệu: bảng `results` trong Supabase → **Table Editor**, hoặc trên web bấm **⋯ → Copy để dán vào Google Sheet** / **Tải CSV**.
+
+Muốn dùng lại web cho khu vực khác mà không lẫn số liệu: đổi `event` trong `config.js` (VD `"haiphong-2026"`).
 
 ## Deploy lên Vercel
 
@@ -70,7 +116,9 @@ Dữ liệu hiện tại: **63 trận vòng bảng (đủ vòng tròn) + 10 tr�
 ## Cấu trúc
 
 ```
-index.html    khung + 2 modal
+index.html    khung + 3 modal
+config.js     ⭐ CẤU HÌNH: Supabase + mật khẩu nhập điểm
+sync.js       đồng bộ realtime, hàng đợi khi mất mạng
 styles.css    mobile-first, tự đổi sáng/tối theo máy
 rules.js      engine tính điểm/xếp hạng/nhì xuất sắc (chỉnh luật ở đây)
 app.js        UI 5 tab, nhập điểm, export
